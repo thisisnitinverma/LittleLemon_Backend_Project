@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section>
+    <article>
+        <h1>All Reservations</h1>
+        <div id="all-reservations"></div>
+    </article>
+</section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('/restaurant/bookings')
+            .then((response) => response.json())
+            .then((data) => {
+                const container = document.getElementById('all-reservations');
+                if (data.length === 0) {
+                    container.innerHTML = '<p>No Bookings</p>';
+                } else {
+                    let html = '<ul>';
+                    data.forEach((item) => {
+                        html += `<li>${item.first_name} - ${item.reservation_date} at ${item.reservation_slot}:00</li>`;
+                    });
+                    html += '</ul>';
+                    container.innerHTML = html;
+                }
+            });
+    });
+</script>
+{% endblock %}

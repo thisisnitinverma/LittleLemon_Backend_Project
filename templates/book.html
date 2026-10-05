@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section>
+    <article>
+        <h1>Make a Reservation</h1>
+
+        <form method="POST" id="form">
+            {% csrf_token %}
+            <p>
+                <label for="first_name">First Name:</label>
+                <input type="text" placeholder="Your Name" maxlength="255" required id="first_name">
+            </p>
+
+            <p>
+                <!-- Requirement #5: Date Selector -->
+                <label for="reservation_date">Reservation Date:</label>
+                <input type="date" required id="reservation_date">
+            </p>
+
+            <p>
+                <label for="reservation_slot">Reservation Slot:</label>
+                <select id="reservation_slot">
+                    <!-- Options populated dynamically via JavaScript -->
+                </select>
+            </p>
+
+            <button type="button" id="button">Book Now</button>
+        </form>
+    </article>
+
+    <article>
+        <h2>Bookings For <span id="booking_date_label"></span></h2>
+        <!-- Requirement #11: Displays bookings or "No Bookings" message -->
+        <div id="bookings"></div>
+    </article>
+</section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const dateInput = document.getElementById('reservation_date');
+        const slotSelect = document.getElementById('reservation_slot');
+        const nameInput = document.getElementById('first_name');
+        const bookingsDiv = document.getElementById('bookings');
+        const dateLabel = document.getElementById('booking_date_label');
+
+        // Requirement #13: Automatically select current date on page load
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+
+        // Initial Fetch
+        getBookings(today);
+
+        // Requirement #8: Refresh data when date changes
+        dateInput.addEventListener('change', function () {
+            getBookings(this.value);
+        });
+
+        function getBookings(selectedDate) {
+            dateLabel.innerText = selectedDate;
+
+            // Requirement #12 & #10: Fetch API used to get bookings by specific date
+            fetch(`/restaurant/bookings?date=${selectedDate}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    let reservedSlots = [];
+                    let bookingsHTML = '';
+
+                    // Requirement #11: Show "No Bookings" if empty
+                    if (data.length === 0) {
+                        bookingsHTML = '<p>No Bookings</p>';
+                    } else {
+                        // Requirement #6: Display reservation entries
+                        data.forEach((item) => {
+                            reservedSlots.push(item.reservation_slot);
+                            bookingsHTML += `<p>${item.first_name} - ${formatTime(item.reservation_slot)}</p>`;
+                        });
+                    }
+
+                    bookingsDiv.innerHTML = bookingsHTML;
+
+                    // Requirement #7 & #9: Disable/Remove already booked slots
+                    let slotOptions = '<option value="" disabled selected>Select time</option>';
+                    for (let hour = 10; hour <= 20; hour++) {
+                        const isBooked = reservedSlots.includes(hour);
+                        if (!isBooked) {
+                            slotOptions += `<option value="${hour}">${formatTime(hour)}</option>`;
+                        }
+                    }
+                    slotSelect.innerHTML = slotOptions;
+                });
+        }
+
+        function formatTime(time) {
+            const ampm = time >= 12 ? 'PM' : 'AM';
+            const formattedHour = time > 12 ? time - 12 : time;
+            return `${formattedHour}:00 ${ampm}`;
+        }
+
+        // Submit Booking
+        document.getElementById('button').addEventListener('click', function () {
+            const formdata = {
+                first_name: nameInput.value,
+                reservation_date: dateInput.value,
+                reservation_slot: parseInt(slotSelect.value),
+            };
+
+            if (!formdata.first_name || !formdata.reservation_date || !formdata.reservation_slot) {
+                alert('Please complete all fields.');
+                return;
+            }
+
+            fetch('/restaurant/bookings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formdata),
+            })
+                .then((response) => response.json())
+                .then(() => {
+                    nameInput.value = '';
+                    getBookings(dateInput.value); // Refresh available slots and bookings list
+                });
+        });
+    });
+</script>
+{% endblock %}
